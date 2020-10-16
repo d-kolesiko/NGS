@@ -1,0 +1,331 @@
+
++perEditor
++transgeneR
+
+===========================================================================================================
+1)Ручное
+-неправильно спаренные
+-мой алгоритм
+
+2)Программы
+
+2.1)
+lumpy
+GRIDDS
+Delly
+Manta
+
+2.2)
+gatk
+varskan
+mypileup
+
+2.3)
+sv-caller
+
+
+3)Сборка генома
+
+3.1)Уточнение 
+RGAAT
+
+3.2)
+SPADes
+velveth
+
+
+
+
+==================================================================================
+GATK
+==================================================================================
+
+-Какие-то ошибки в бам файле
+-Другой выравниватель, опции мем ?
+
+_______________________________________________
+
+java -jar picard.jar ValidateSamFile I=pe_sorted.bam R=normalized_genome.fa MODE=SUMMARY
+
+java -jar picard.jar ValidateSamFile I=pe_sorted.bam R=genome+F8plasm.fa MODE=SUMMARY
+
+java -jar picard.jar ValidateSamFile I=pe_sorted.bam R=genome+F8plasm.fa IGNORE_WARNINGS=true MODE=VERBOSE
+
+_______________________________________________
+
+export PATH="/home/d/bio/gatk-4.1.8.1/:$PATH"
+
+export PATH="/home/nobiol/TLA-data/TLA-Vorobiev/F8/gatk-4.1.4.0/:$PATH"
+
+java -jar picard.jar CreateSequenceDictionary R=normalized_genome.fa O=normalized_genome.fa.dict
+
+#(or)CreateSequenceDictionary -R normalized_genome.fa -O normalized_genome.fa.dict
+
+ gatk --java-options "-Xmx4g" HaplotypeCaller  \
+   -R normalized_genome.fa \
+   -I pe_sorted.bam \
+   -O pe_F8.vcf \
+
+#(or)gatk HaplotypeCaller --reference normalized_genome.fa --input pe_sorted.bam --output pe_F8.vcf
+
+
+
+
+==================================================================================
+VarScan
+==================================================================================
+
+1)
+
+samtools mpileup -B -f normalized_genome.fa pe_sorted.bam  > pe_1.mpileup
+
+#java -jar VarScan.jar mpileup2cns [mpileup file] OPTIONS
+
+java -jar VarScan.v2.3.9.jar mpileup2cns pe_1.mpileup > my_cns
+
+
+2)
+
+samtools mpileup -Euvf normalized_genome.fa pe_sorted.bam | bgzip > pe1.vcf.gz
+
+samtools mpileup -Euvf genome+F8plasm.fa pe_sorted.bam | bgzip > pe1.vcf.gz
+
+
+===========================================================================================================
+==================================================================================
+GRIDDS
+==================================================================================
+
+-Просто не запускается
+___________________________________________________
+
+export PATH="/gridss-2.9.4/:$PATH"
+
+./gridss.sh --reference normalized_genome.fa --output output.vcf.gz --assembly pe_sorted.bam
+
+java -Xmx3g -cp $GRIDSS_JAR gridss.AnnotateInsertedSequence gridss.sh --reference normalized_genome.fa --output output.vcf.gz --assembly pe_sorted.bam
+
+
+call
+
+java -Xmx3g -cp $GRIDSS_JAR gridss.sh --reference normalized_genome.fa --output output.vcf.gz --assembly pe_sorted.bam
+
+
+==================================================================================
+lumpy
+==================================================================================
+
+-Не устанавливается с гитхаба
+_______________________________
+
+git clone --recursive git@github.com:arq5x/lumpy-sv.git
+cd lumpy-sv
+make
+cp bin/* /usr/local/bin/.
+
+2)
+
+git clone --recursive https://github.com/arq5x/lumpy-sv.git
+cd lumpy-sv
+make
+cp bin/* /usr/local/bin/.
+________________________________
+
+# Extract the discordant paired-end alignments.
+samtools view -b -F 1294 sample.bam > sample.discordants.unsorted.bam
+
+# Extract the split-read alignments
+samtools view -h sample.bam \
+    | scripts/extractSplitReads_BwaMem -i stdin \
+    | samtools view -Sb - \
+    > sample.splitters.unsorted.bam
+
+# Sort both alignments
+samtools sort sample.discordants.unsorted.bam sample.discordants
+samtools sort sample.splitters.unsorted.bam sample.splitters
+
+lumpyexpress \
+    -B sample.bam \
+    -S sample.splitters.bam \
+    -D sample.discordants.bam \
+    -o sample.vcf
+
+
+==================================================================================
+delly
+==================================================================================
+
+-Не устанавливается (не компилируется)
+_____________________________________
+
+git clone --recursive https://github.com/dellytools/delly.git
+
+cd delly/
+
+make all
+
+
+==================================================================================
+Manta
+==================================================================================
+Устарела, не поддерживается
+_____________________________________
+
+
+==================================================================================
+Sv-callers
+==================================================================================
+
+git clone https://github.com/GooglingTheCancerGenome/sv-callers.git
+cd sv-callers
+
+
+# download Miniconda3 installer
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+# install Conda (respond by 'yes')
+bash miniconda.sh
+# update Conda
+conda update -y conda
+
+____________________________________________________
+
+# create & activate new env with installed deps
+conda env create -n wf -f environment.yaml
+conda activate wf
+cd snakemake
+
+____________________________________________________
+
+# 'dry' run only checks I/O files
+snakemake -np
+# 'vanilla' run (default) mimics the execution of SV callers by writing (dummy) VCF files
+snakemake -C echo_run=1
+
+
+
+
+===========================================================================================================
+==================================================================================
+RGAAT
+==================================================================================
+-У меня Нужны пакеты перл
+-У надежды запустилось, идет слишком долго
+
+_________________________________________
+
+1)
+perl -MCPAN -e shell
+install Getopt::Long
+install Text::NSP
+install SVG
+install Statistics::Multtest
+2)
+
+perl -MCPAN -e install Getopt::Long
+
+_____________________________________________________
+
+ perl RGAAT.pl -g genome_sequence(FASTA) -a annotation(TBL, GTF, GFF, GFF3 or BED) [-s SAM_file | -b BAM_file | -v VCF_file | -n new_genome_file] -o prefix_of_output_file.
+ 
+perl RGAAT.pl -g genome+F8plasm.fa -a criGriChoV2.ensGene.gtf -b BAM_file -o newfi 
+
+perl RGAAT.pl -g normalized_genome.fa -b pe_sorted.bam -o newfi111
+
+
+==================================================================================
+WGS pipeline
+==================================================================================
+
+
+
+
+
+
+
+
+install_github 'menggf/transgeneR'
+
+
+
+
+
+
+
+
+
+
+
+=========================
+If you'd prefer that conda's base environment not be activated on startup, 
+   set the auto_activate_base parameter to false: 
+
+conda config --set auto_activate_base false
+
+
+
+
+
+
+
+
+
+
+
+==================================================================================
+==================================================================================
+==================================================================================
+
+
+## HISTOGRAM	java.lang.String
+Error Type	Count
+ERROR:MISSING_READ_GROUP	1
+WARNING:RECORD_MISSING_READ_GROUP	171445685
+
+[Sat Oct 10 20:38:48 MSK 2020] picard.sam.ValidateSamFile done. Elapsed time: 20.25 minutes.
+Runtime.totalMemory()=1173356544
+To get help, see http://broadinstitute.github.io/picard/index.html#GettingHelp
+
+==================================================================================
+==================================================================================
+==================================================================================
+==================================================================================
+==================================================================================
+
+bwa mem genome4.fa read1.fastq read2.fastq > g4_pe.sam
+samtools view -S -b   g4_pe.sam >   g4_pe.bam
+samtools sort g4_pe.bam -o g4_pe_sorted.bam
+samtools index g4_pe_sorted.bam
+samtools flagstat g4_pe_sorted.bam
+
+
+
+
+
+На разные хромосомы
+Должны получится одинаковые результаты
+
+_______________________________________
+1)
+
+awk '($3!=$7 && $7!="=")'
+
+
+_______________________________________
+2)
+
+samtools view -F 14 -h infile.bam | grep -v " = " > outfile.sam
+
+samtools view -b outfile.sam > finalout.bam
+
+
+_______________________________________
+3)
+
+samtools view -F 14 -q 5 -h input.sam \
+    | awk '$7 !~ /=/' \
+    | samtools view -Sb - \
+    > map_2_diff_chroms.bam
+
+
+
+
