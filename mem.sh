@@ -1,8 +1,8 @@
 #runBWAmem
 
-read sequence
-read reads
-read aligment
+read -p "reference: " sequence
+read -p "reads: " reads
+read -p "aligment name: : " aligment
 
 echo $sequence
 echo $reads
