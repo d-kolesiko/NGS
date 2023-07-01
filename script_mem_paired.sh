@@ -21,3 +21,11 @@ samtools view -h $REF.bam | awk '($3!=$7 && $7!="=")' | samtools view -Sbh > 4BG
 
 #Clipping
 samtools view -f 2048 -Sbh $REF.bam > 4BGD_clips.fq.gz
+
+#Coverage
+samtools coverage -r pKS-gRNA-BB_75_3405_75-bp EColi_CHO_4plasmCl4_sorted.bam > pKS-gRNA_coverage
+samtools coverage -r px458N_75_8858_75-bp EColi_CHO_4plasmCl4_sorted.bam > px458N_coverage
+
+#Number of copies
+samtools depth -a  EColi_CHO_4plasmCl4_sorted.bam -r pKS-gRNA-BB_75_3405_75-bp |  awk '{sum+=$3} END { print "Average = ",sum/NR}'
+samtools depth -a  EColi_CHO_4plasmCl4_sorted.bam -r px458N_75_8858_75-bp |  awk '{sum+=$3} END { print "Average = ",sum/NR}'
