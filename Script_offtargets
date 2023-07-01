@@ -1,0 +1,36 @@
+
+
+
+#Получение списка возможных офф-таргетов для каждой гРНК
+CRISPR RGEN Tools (http://www.rgenome.net/) Cas-OFFinder
+гРНК: GGAAGCCGGTCAAACCACGT
+cat result.txt | awk {'print$3'} > result2.txt
+sed 'i\>Bak1__' result2.txt > result3.txt
+./insert.py
+with open('result3.txt') as f:
+    lines = f.readlines()
+
+with open('Bak_result', 'w') as f:
+    for i, line in enumerate(lines):
+        if i % 2 == 1:
+            line = line[:-2] + str(i//2+1) + "\n"
+        f.write(line)
+
+#Выравнивание всех этих последовательностей на геном
+bwa aln CHO_Cl4.fa off-targets.fasta  > aln_off-targets.sai
+bwa samse CHO_Cl4.fa aln_off-targets.sai off-targets.fasta | samtools view -S -b  | samtools sort > off-targets_sorted.bam
+samtools flagstat off-targets_sorted.bam
+samtools index off-targets_sorted.bam
+bedtools bamtobed -i off-targets_sorted.bam > off-targets.bed
+
+#bcftools mpileup 
+bcftools mpileup -Ou -R off-targets.bed -f CHO_Cl4-plasm.fa CHO_Cl4-plasm_sorted.bam | bcftools call -mv -Oz -o calls_oft.vcf.gz
+
+#Чтобы смотреть только экзоны
+grep exon CHO_annotation.gtf | cut -f1,4,5 | sort -u > exons.bed
+bedtools intersect -a off-targets.bed -b exons.bed > intersect.bed
+
+#Проверка, что на оффтаргетах есть покрытие
+samtools mpileup -l off-targets.bed -f CHO_Cl4-plasm.fa CHO_Cl4-plasm_sorted.bam > off-targets_coverage
+
+
